@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Phishing Fishing — Cybersecurity Awareness Game</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@500;700&display=swap');
+
+  :root{
+    --deep:#073B6B;
+    --mid:#0E63A6;
+    --shallow:#33A8E0;
+    --sand:#F4E2B8;
+    --safe:#22B27D;
+    --safe-dark:#0F7A54;
+    --danger:#FF5C5C;
+    --danger-dark:#C93A3A;
+    --gold:#FFCB3D;
+    --gold-dark:#C98E00;
+    --ink:#053050;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden;
+    font-family:'Fredoka', sans-serif; color:var(--ink);
+    background:linear-gradient(180deg,#1CA7EC 0%, var(--mid) 45%, var(--deep) 100%);
+  }
+  h1,h2,h3{font-family:'Baloo 2', sans-serif; margin:0;}
+
+  #app{position:relative; width:100%; height:100vh; min-height:520px; overflow:hidden;}
+
+  /* ---------- background decor ---------- */
+  .bubble{
+    position:absolute; bottom:-40px; border-radius:50%;
+    background:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.4);
+    animation:rise linear infinite;
+  }
+  @keyframes rise{
+    from{ transform:translateY(0) translateX(0); opacity:0.9;}
+    to{ transform:translateY(-110vh) translateX(20px); opacity:0;}
+  }
+  .sandbed{
+    position:absolute; left:0; right:0; bottom:0; height:6%;
+    background:linear-gradient(180deg, var(--sand), #E3C57F);
+    border-top:4px solid #D8B667;
+  }
+  .sunray{
+    position:absolute; top:-10%; width:120px; height:140%;
+    background:linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0));
+    transform-origin:top center; z-index:0; animation:swayRay 9s ease-in-out infinite;
+  }
+  @keyframes swayRay{ 0%,100%{ transform:rotate(6deg);} 50%{ transform:rotate(-4deg);} }
+  .seaweed{
+    position:absolute; bottom:5%; width:22px; height:90px; z-index:1;
+    background:linear-gradient(180deg,#2E9E5B,#1F7A43);
+    border-radius:40% 40% 6px 6px / 60% 60% 6px 6px;
+    transform-origin:bottom center; animation:swaySeaweed 3.4s ease-in-out infinite;
+    opacity:0.85;
+  }
+  @keyframes swaySeaweed{ 0%,100%{ transform:rotate(-8deg);} 50%{ transform:rotate(9deg);} }
+  .decor-whale{
+    position:absolute; z-index:1; font-size:64px; opacity:0.16;
+    animation:whaleDrift linear forwards; pointer-events:none;
+  }
+  @keyframes whaleDrift{ from{transform:translateX(0);} to{transform:translateX(var(--driftX));} }
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:absolute; top:0; left:0; right:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; gap:10px; flex-wrap:wrap;
+    background:linear-gradient(180deg, rgba(4,40,70,0.75), rgba(4,40,70,0));
+  }
+  .hud-chip{
+    background:rgba(255,255,255,0.92); border-radius:999px; padding:6px 14px;
+    display:flex; align-items:center; gap:6px; font-weight:600; font-size:14px; color:var(--ink);
+    box-shadow:0 2px 0 rgba(0,0,0,0.08);
+  }
+  .hud-chip .lbl{font-size:10.5px; font-weight:500; color:#6b7280; margin-right:2px;}
+  #hearts span{font-size:16px; margin-left:1px;}
+  #timerWrap{flex:1; min-width:140px; max-width:260px;}
+  #timerBar{height:14px; background:rgba(255,255,255,0.35); border-radius:999px; overflow:hidden; border:2px solid rgba(255,255,255,0.6);}
+  #timerFill{height:100%; width:100%; background:linear-gradient(90deg,#FFE07A,var(--gold)); transition:width 0.2s linear;}
+  #comboChip{background:linear-gradient(135deg,var(--gold),var(--gold-dark)); color:#4a3200;}
+  #pauseBtn, #musicBtn{background:rgba(255,255,255,0.92); border:none; border-radius:999px; width:36px; height:36px; font-size:16px; cursor:pointer;}
+
+  /* ---------- ocean play area ---------- */
+  #ocean{
+    position:absolute; top:0; left:0; right:0; bottom:16%;
+    touch-action:none;
+  }
+  .fish{
+    position:absolute; z-index:5; cursor:grab; user-select:none;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    filter:drop-shadow(0 3px 3px rgba(0,0,0,0.25));
+    touch-action:none; will-change:transform;
+  }
+  .fish.dragging{cursor:grabbing; z-index:50; filter:drop-shadow(0 8px 10px rgba(0,0,0,0.35)) brightness(1.05);}
+  .fish-emoji{font-size:42px; line-height:1; transform:scaleX(-1);}
+  .fish.flip .fish-emoji{transform:scaleX(1);}
+  .fish-label{
+    max-width:150px; background:rgba(255,255,255,0.95); border-radius:8px;
+    padding:3px 7px; font-size:11px; font-weight:600; text-align:center;
+    line-height:1.25; color:var(--ink); box-shadow:0 2px 0 rgba(0,0,0,0.1);
+  }
+  .fish-sub{font-size:9px; font-weight:500; color:#7a8699; display:block;}
+  .powerup .fish-emoji{font-size:38px; transform:none; animation:spin 3s linear infinite;}
+  @keyframes spin{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
+  .pop{
+    position:absolute; z-index:60; font-family:'Baloo 2',sans-serif; font-weight:700;
+    font-size:20px; pointer-events:none; animation:popfloat 0.9s ease-out forwards;
+  }
+  @keyframes popfloat{
+    0%{ transform:translateY(0) scale(0.6); opacity:0;}
+    15%{ transform:translateY(-6px) scale(1.15); opacity:1;}
+    100%{ transform:translateY(-60px) scale(1); opacity:0;}
+  }
+
+  /* ---------- buckets ---------- */
+  #buckets{
+    position:absolute; left:0; right:0; bottom:0; height:16%; z-index:15;
+    display:flex; gap:2%; padding:0 3% 10px; align-items:stretch;
+  }
+  .bucket{
+    flex:1; border-radius:18px 18px 8px 8px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:2px; font-weight:700;
+    border:3px dashed rgba(255,255,255,0.7); transition:transform 0.12s ease, box-shadow 0.12s ease;
+    font-family:'Baloo 2',sans-serif; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.25);
+  }
+  .bucket .b-icon{font-size:26px;}
+  .bucket .b-sub{font-size:10.5px; font-weight:500; opacity:0.9;}
+  .bucket.safe{background:linear-gradient(180deg,var(--safe),var(--safe-dark));}
+  .bucket.report{background:linear-gradient(180deg,var(--danger),var(--danger-dark));}
+  .bucket.hover{transform:scale(1.05); box-shadow:0 0 0 6px rgba(255,255,255,0.35);}
+
+  /* ---------- overlays ---------- */
+  .overlay{
+    position:absolute; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+    background:rgba(3,25,45,0.72); padding:16px;
+  }
+  .card{
+    background:var(--card); border-radius:20px; padding:26px 24px; max-width:480px; width:100%;
+    max-height:88vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,0.35); text-align:center;
+  }
+  .card h1{font-size:26px; color:var(--deep);}
+  .card h2{font-size:20px; color:var(--deep); margin-bottom:4px;}
+  .tagline{color:#5b6b7a; font-size:14px; margin-top:6px; margin-bottom:16px;}
+  .howto{text-align:left; background:#F3F8FC; border-radius:12px; padding:14px 16px; margin:14px 0; font-size:13.5px; line-height:1.6;}
+  .howto li{margin-bottom:4px;}
+  .btn{
+    font-family:'Baloo 2',sans-serif; font-weight:700; border:none; border-radius:999px;
+    padding:13px 28px; font-size:16px; cursor:pointer; color:#fff; margin:6px 4px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.18); transition:transform 0.08s ease;
+  }
+  .btn:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,0.18);}
+  .btn-primary{background:linear-gradient(180deg,#FFCB3D,#F2A900);}
+  .btn-secondary{background:linear-gradient(180deg,#33A8E0,#1C7FB0);}
+  .btn-ghost{background:#E9EEF3; color:var(--ink); box-shadow:0 4px 0 rgba(0,0,0,0.06);}
+
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0;}
+  .stat-box{background:#F3F8FC; border-radius:12px; padding:10px; text-align:center;}
+  .stat-box .num{font-family:'Baloo 2',sans-serif; font-size:22px; font-weight:700; color:var(--mid);}
+  .stat-box .lbl{font-size:11px; color:#6b7280;}
+
+  .badge-row{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:12px 0;}
+  .badge-pill{
+    background:linear-gradient(135deg,#FFE07A,var(--gold)); color:#4a3200; font-size:12.5px;
+    font-weight:700; padding:7px 12px; border-radius:999px; display:flex; align-items:center; gap:6px;
+  }
+
+  input[type="text"]{
+    width:100%; padding:11px 14px; border-radius:10px; border:2px solid #D9E4EC;
+    font-family:'Fredoka',sans-serif; font-size:14px; margin:8px 0 4px;
+  }
+  table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13.5px;}
+  th,td{padding:8px 6px; text-align:left; border-bottom:1px solid #EAEFF3;}
+  th{color:#6b7280; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.03em;}
+  tr.you{background:#FFF6DC;}
+
+  .learn-card{
+    background:#FFF9E9; border:2px solid #FFE7A6; border-radius:14px; padding:14px 16px;
+    text-align:left; font-size:13.5px; line-height:1.55; margin:14px 0;
+  }
+  .learn-card b{color:var(--ink);}
+  .verdict{font-family:'Baloo 2',sans-serif; font-weight:700; font-size:18px; margin-bottom:6px;}
+  .verdict.good{color:var(--safe-dark);}
+  .verdict.bad{color:var(--danger-dark);}
+
+  .hidden{display:none !important;}
+
+  @media (max-width:520px){
+    .fish-emoji{font-size:34px;}
+    .fish-label{font-size:10px; max-width:120px;}
+    .bucket .b-icon{font-size:20px;}
+    .bucket .b-sub{font-size:9px;}
+    .card{padding:20px 16px;}
+    .card h1{font-size:22px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="sandbed"></div>
+  <div id="ocean"></div>
+
+  <div id="hud">
+    <div class="hud-chip"><span class="lbl">SCORE</span><span id="scoreVal">0</span></div>
+    <div class="hud-chip" id="comboChip"><span class="lbl">COMBO</span><span id="comboVal">x1</span></div>
+    <div id="timerWrap"><div id="timerBar"><div id="timerFill"></div></div></div>
+    <div class="hud-chip" id="hearts"></div>
+    <div class="hud-chip"><span class="lbl">LEVEL</span><span id="levelVal">1</span></div>
+    <button id="musicBtn" title="Toggle music">🔊</button>
+    <button id="pauseBtn" title="Pause">⏸</button>
+  </div>
+
+  <div id="buckets">
+    <div class="bucket safe" id="safeBucket">
+      <span class="b-icon">📥</span>
+      <span>Safe Inbox</span>
+      <span class="b-sub">Drop legit messages here</span>
+    </div>
+    <div class="bucket report" id="reportBucket">
+      <span class="b-icon">🚩</span>
+      <span>Report Phishing</span>
+      <span class="b-sub">Drop scams here</span>
+    </div>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="overlay" id="startScreen">
+    <div class="card">
+      <h1>🎣 Phishing Fishing</h1>
+      <div class="tagline">Reel in the real messages. Report the scams. Keep the company safe.</div>
+      <div class="howto">
+        <strong>How to play</strong>
+        <ul>
+          <li>Emails, texts, calls and QR codes swim by as fish 🐟</li>
+          <li>Drag safe ones into <b>Safe Inbox</b> 📥</li>
+          <li>Drag scams into <b>Report Phishing</b> 🚩</li>
+          <li>Watch for phishing, smishing, vishing, CEO fraud, QR scams &amp; BEC</li>
+          <li>Catch golden power-ups ⏳ 🛡️ ⭐ for a boost</li>
+          <li>Careful — early levels show suspicious ones as sharks 🦈, but later they blend in!</li>
+        </ul>
+      </div>
+      <button class="btn btn-primary" id="playBtn">Start Fishing</button>
+      <br>
+      <button class="btn btn-ghost" id="leaderboardBtnStart">🏆 Leaderboard</button>
+    </div>
+  </div>
+
+  <!-- CATCH FEEDBACK (mid-round explanation) -->
+  <div class="overlay hidden" id="feedbackScreen">
+    <div class="card">
+      <div class="verdict" id="fbVerdict"></div>
+      <div class="learn-card" id="fbLearn"></div>
+      <button class="btn btn-primary" id="fbContinue">Keep Fishing</button>
+    </div>
+  </div>
+
+  <!-- PAUSE SCREEN -->
+  <div class="overlay hidden" id="pauseScreen">
+    <div class="card">
+      <h2>Paused</h2>
+      <p class="tagline">Take a breath. The fish will wait.</p>
+      <button class="btn btn-primary" id="resumeBtn">Resume</button><br>
+      <button class="btn btn-ghost" id="quitBtn">Quit to Menu</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div class="overlay hidden" id="gameOverScreen">
+    <div class="card">
+      <h1 id="goTitle">Round Complete!</h1>
+      <div class="tagline" id="goTagline">Here's how you did</div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="num" id="goScore">0</div><div class="lbl">Final Score</div></div>
+        <div class="stat-box"><div class="num" id="goLevel">1</div><div class="lbl">Level Reached</div></div>
+        <div class="stat-box"><div class="num" id="goCorrect">0</div><div class="lbl">Correct Catches</div></div>
+        <div class="stat-box"><div class="num" id="goMissed">0</div><div class="lbl">Missed / Wrong</div></div>
+      </div>
+      <div id="goBadges" class="badge-row"></div>
+      <input type="text" id="nameInput" placeholder="Enter your name for the leaderboard" maxlength="18">
+      <div>
+        <button class="btn btn-primary" id="submitScoreBtn">Save Score</button>
+      </div>
+      <div>
+        <button class="btn btn-secondary" id="playAgainBtn">Play Again</button>
+        <button class="btn btn-ghost" id="viewLbBtn">🏆 Leaderboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD SCREEN -->
+  <div class="overlay hidden" id="leaderboardScreen">
+    <div class="card">
+      <h2>🏆 Top Anglers</h2>
+      <div class="tagline">Best scores across the company</div>
+      <div id="lbTableWrap">
+        <table>
+          <thead><tr><th>#</th><th>Name</th><th>Score</th><th>Level</th></tr></thead>
+          <tbody id="lbBody"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-primary" id="closeLbBtn">Back</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+
+/* ======================= DATA ======================= */
+const MESSAGES = [
+  // ---- Email: phishing ----
+  {channel:'email', phishing:true, tactic:'Phishing', sender:'accounts@paypa1-secure.com', text:'Your account will be suspended in 24 hours. Verify now.', tip:'Look-alike domain ("paypa1" with a numeral 1) plus urgent countdown pressure — classic phishing hallmark.'},
+  {channel:'email', phishing:true, tactic:'Phishing', sender:'billing@amaz0n-support.net', text:'Invoice #88213 attached — payment failed, click to update card.', tip:'Misspelled brand domain and an unexpected invoice designed to make you click without checking the sender.'},
+  {channel:'email', phishing:true, tactic:'Phishing', sender:'no-reply@yourbank-alerts.info', text:'Unusual login detected. Confirm your identity immediately.', tip:'Generic "unusual login" scares combined with a non-bank domain (.info) are a common credential-harvesting setup.'},
+  {channel:'email', phishing:true, tactic:'Business Email Compromise', sender:'vendor-payments@acme-suppliers-llc.co', text:'Please note our bank details changed — updated invoice attached.', tip:'A "sudden bank detail change" for a vendor is a textbook BEC move. Always verify by phone using a known number.'},
+  {channel:'email', phishing:true, tactic:'CEO Fraud', sender:'j.carter.ceo@gmial.com', text:'I need you to process an urgent wire transfer, can\'t talk right now.', tip:'Free webmail domain impersonating an executive, plus urgency and "can\'t talk" isolation — classic CEO fraud.'},
+  // ---- Email: legit ----
+  {channel:'email', phishing:false, tactic:'Legitimate', sender:'it-helpdesk@meridiandynamics.com', text:'Scheduled maintenance this weekend — no action needed.', tip:'Correct internal domain, no urgency, no request for credentials or money. Safe to keep.'},
+  {channel:'email', phishing:false, tactic:'Legitimate', sender:'priya.nandan@meridiandynamics.com', text:'Reminder: security training session Thursday at 2pm.', tip:'Sent from a real colleague on the verified company domain about a routine, low-pressure topic.'},
+  {channel:'email', phishing:false, tactic:'Legitimate', sender:'hr@meridiandynamics.com', text:'Your updated benefits guide is now available on the portal.', tip:'Matches the real company domain and links to an internal portal rather than an external link.'},
+  {channel:'email', phishing:false, tactic:'Legitimate', sender:'newsletter@techweekly.com', text:'This week in tech: 5 stories worth reading.', tip:'A recognizable newsletter with no request for action, login, or payment. Low risk.'},
+  {channel:'email', phishing:false, tactic:'Legitimate', sender:'calendar@meridiandynamics.com', text:'Meeting invite: Q3 planning sync, Tuesday 10am.', tip:'Routine calendar invite from the internal system. Nothing to verify or worry about.'},
+  // ---- SMS: smishing ----
+  {channel:'sms', phishing:true, tactic:'Smishing', sender:'+1 (302) 555-0199', text:'Your package could not be delivered. Reschedule: bit.ly/pkg-fix22', tip:'Shortened link hiding the real destination plus a fake delivery problem — a very common smishing lure.'},
+  {channel:'sms', phishing:true, tactic:'Smishing', sender:'"Bank Alert"', text:'Suspicious charge of $842.00 detected. Reply YES to confirm or NO to freeze.', tip:'Real banks rarely ask you to reply YES/NO to a text about fraud — this pressures a fast, unverified reply.'},
+  {channel:'sms', phishing:true, tactic:'Smishing', sender:'"HR-Payroll"', text:'Your direct deposit failed. Update details: hr-update-portal.co', tip:'Unofficial-looking domain requesting banking details over text — always verify via the real HR portal.'},
+  // ---- SMS: legit ----
+  {channel:'sms', phishing:false, tactic:'Legitimate', sender:'Meridian IT', text:'Your verification code is 483920. Do not share this code.', tip:'A one-time code you requested yourself, with a clear warning not to share it — normal 2FA behavior.'},
+  {channel:'sms', phishing:false, tactic:'Legitimate', sender:'Dr. Lin\'s Office', text:'Reminder: appointment tomorrow at 9:30am.', tip:'Routine appointment reminder with no links, urgency, or requests for personal data.'},
+  // ---- Call: vishing ----
+  {channel:'call', phishing:true, tactic:'Vishing', sender:'"IT Support" — unknown number', text:'"I need your password to fix a critical issue right now."', tip:'Real IT will never ask for your password over the phone. This is textbook vishing pretexting.'},
+  {channel:'call', phishing:true, tactic:'Vishing', sender:'"Bank Fraud Dept" — spoofed caller ID', text:'"Read me the code we just texted you to stop the fraud."', tip:'A caller asking you to read back a 2FA code is trying to log into your account in real time.'},
+  {channel:'call', phishing:true, tactic:'CEO Fraud', sender:'"CEO" — urgent voicemail', text:'"Buy $2,000 in gift cards for a client emergency, expense it later."', tip:'Gift card requests from "executives" are one of the most common fraud patterns — always verify in person or via a known number.'},
+  // ---- Call: legit ----
+  {channel:'call', phishing:false, tactic:'Legitimate', sender:'Front Desk — internal ext. 204', text:'"Your afternoon guest has arrived in the lobby."', tip:'Internal extension, low-stakes routine message with no request for sensitive info.'},
+  {channel:'call', phishing:false, tactic:'Legitimate', sender:'Recruiting Team — scheduled callback', text:'"Following up on the interview time we discussed by email."', tip:'A pre-arranged callback that matches an existing email thread — consistent and expected.'},
+  // ---- QR: scam ----
+  {channel:'qr', phishing:true, tactic:'QR Code Scam', sender:'Parking meter sticker', text:'Scan to pay for parking — link goes to a lookalike payment page.', tip:'Stickers placed over real QR codes are a growing scam — the preview URL rarely matches the real vendor.'},
+  {channel:'qr', phishing:true, tactic:'QR Code Scam', sender:'"Free coffee" table-tent', text:'Scan for a free drink — redirects to a fake login page.', tip:'Too-good-to-be-true rewards plus an unexpected login request after scanning is a classic quishing pattern.'},
+  // ---- QR: legit ----
+  {channel:'qr', phishing:false, tactic:'Legitimate', sender:'Company event poster', text:'Scan to RSVP on the official events portal.', tip:'Posted by a known internal team, linking to the verified company events domain.'},
+  // ---- Social engineering (generic) ----
+  {channel:'email', phishing:true, tactic:'Social Engineering', sender:'"New Hire Buddy" — unknown sender', text:'Hey, quick favor — can you send me the new-hire onboarding doc? Starting Monday!', tip:'Friendly framing and a plausible story used to extract internal documents — verify identity before sharing anything.'},
+  {channel:'email', phishing:false, tactic:'Legitimate', sender:'sam.oduya@meridiandynamics.com', text:'Can you resend the slide deck from yesterday\'s meeting?', tip:'A known colleague on the verified domain referencing a real, specific shared event.'},
+];
+
+const CHANNEL_META = {
+  email:{icon:'✉️'}, sms:{icon:'💬'}, call:{icon:'📞'}, qr:{icon:'▦'}
+};
+const NORMAL_FISH = ['🐠','🐟','🐡','🦀','🐢','🦐','🐬'];
+const PREDATOR_FISH = ['🦈','🐙','🦑'];
+const POWERUPS = [
+  {key:'time', emoji:'⏳', name:'Time Boost', desc:'+8 seconds on the clock'},
+  {key:'shield', emoji:'🛡️', name:'Shield', desc:'Forgives your next mistake'},
+  {key:'multi', emoji:'⭐', name:'Score Boost', desc:'2x points for 8 seconds'},
+];
+
+const LEVELS = [
+  {time:35, spawnMs:2300, speed:34, revealPredator:true},
+  {time:32, spawnMs:2100, speed:42, revealPredator:true},
+  {time:30, spawnMs:1900, speed:50, revealPredator:false},
+  {time:28, spawnMs:1700, speed:60, revealPredator:false},
+  {time:25, spawnMs:1500, speed:72, revealPredator:false},
+];
+const MAX_LEVEL = LEVELS.length;
+
+/* ======================= DOM ======================= */
+const $ = id => document.getElementById(id);
+const ocean = $('ocean');
+const app = $('app');
+const scoreVal = $('scoreVal'), comboVal = $('comboVal'), levelVal = $('levelVal');
+const timerFill = $('timerFill'), heartsEl = $('hearts');
+const safeBucket = $('safeBucket'), reportBucket = $('reportBucket');
+
+/* ======================= STATE ======================= */
+let state = null;
+function freshState(){
+  return {
+    running:false, paused:false,
+    level:1, score:0, combo:1, comboCount:0, lives:3,
+    timeLeft:LEVELS[0].time, spawnTimer:null, tickTimer:null,
+    fishEls:[], // {el,x,y,vx,dragging,item,resolved,isPowerup}
+    correctCount:0, wrongCount:0, missedCount:0, maxCombo:1,
+    powerupsUsed:0, shieldActive:false, multiActive:false, multiUntil:0,
+    lastTs:0
+  };
+}
+
+function initBubbles(){
+  for(let i=0;i<16;i++){
+    const b=document.createElement('div');
+    b.className='bubble';
+    const size=6+Math.random()*18;
+    b.style.width=size+'px'; b.style.height=size+'px';
+    b.style.left=Math.random()*100+'%';
+    b.style.animationDuration=(6+Math.random()*8)+'s';
+    b.style.animationDelay=(-Math.random()*10)+'s';
+    app.appendChild(b);
+  }
+}
+initBubbles();
+
+function initDecor(){
+  for(let i=0;i<3;i++){
+    const r=document.createElement('div');
+    r.className='sunray';
+    r.style.left=(10+i*35)+'%';
+    r.style.animationDelay=(-i*3)+'s';
+    app.appendChild(r);
+  }
+  for(let i=0;i<7;i++){
+    const s=document.createElement('div');
+    s.className='seaweed';
+    s.style.left=(4+i*13+Math.random()*5)+'%';
+    s.style.height=(60+Math.random()*50)+'px';
+    s.style.animationDelay=(-Math.random()*3)+'s';
+    s.style.animationDuration=(2.6+Math.random()*1.6)+'s';
+    app.appendChild(s);
+  }
+}
+initDecor();
+
+function spawnDecorWhale(){
+  const w = document.createElement('div');
+  w.className='decor-whale';
+  const fromLeft = Math.random()<0.5;
+  w.textContent = '🐋';
+  w.style.top = (10+Math.random()*20)+'%';
+  const dist = window.innerWidth+200;
+  if(fromLeft){ w.style.left='-160px'; w.style.setProperty('--driftX', dist+'px'); }
+  else{ w.style.right='-160px'; w.style.setProperty('--driftX', -dist+'px'); w.style.transform='scaleX(-1)'; }
+  w.style.animationDuration = (18+Math.random()*8)+'s';
+  app.appendChild(w);
+  setTimeout(()=>w.remove(), 30000);
+}
+setInterval(spawnDecorWhale, 14000);
+setTimeout(spawnDecorWhale, 2500);
+
+/* ======================= SOUND (Web Audio, no files needed) ======================= */
+let actx=null;
+function audioCtx(){ if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return actx; }
+function tone(freq, dur, type, vol, delay){
+  const ctx = audioCtx(); if(!ctx) return;
+  const t0 = ctx.currentTime + (delay||0);
+  const osc = ctx.createOscillator(); const gain = ctx.createGain();
+  osc.type = type||'sine'; osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(vol||0.2, t0+0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.02);
+}
+/* ---- background music: scheduled synth loop, no audio files needed ---- */
+const music = (function(){
+  let playing = false, muted = false, timerId = null;
+  let nextNoteTime = 0, noteIndex = 0;
+  const bpm = 108;
+  const beat = 60/bpm;
+  // playful, buoyant ocean-adventure motif — bass pulse + bell-like arpeggio, loops every 8 bars
+  const bassPattern = [130.81,130.81,164.81,164.81, 146.83,146.83,196.00,196.00]; // C3 C3 E3 E3 D3 D3 G3 G3
+  const leadPattern = [
+    523.25,659.25,784.00,659.25, 523.25,659.25,880.00,784.00,
+    587.33,698.46,880.00,698.46, 523.25,659.25,784.00,987.77
+  ];
+  function scheduleNote(freq, time, dur, type, vol){
+    const ctx = audioCtx(); if(!ctx) return;
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, time);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(vol, time+0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time+dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(time); osc.stop(time+dur+0.02);
+  }
+  function schedulerTick(){
+    const ctx = audioCtx(); if(!ctx) return;
+    while(nextNoteTime < ctx.currentTime + 0.6){
+      if(!muted){
+        const bassFreq = bassPattern[noteIndex % bassPattern.length];
+        scheduleNote(bassFreq, nextNoteTime, beat*0.9, 'triangle', 0.06);
+        const leadFreq = leadPattern[noteIndex % leadPattern.length];
+        scheduleNote(leadFreq, nextNoteTime + beat*0.1, beat*0.55, 'sine', 0.045);
+        if(noteIndex % 4 === 0){
+          scheduleNote(leadFreq*2, nextNoteTime + beat*0.5, beat*0.3, 'sine', 0.02);
+        }
+      }
+      noteIndex++;
+      nextNoteTime += beat;
+    }
+  }
+  return {
+    start(){
+      if(playing) return;
+      const ctx = audioCtx(); if(!ctx) return;
+      playing = true;
+      nextNoteTime = ctx.currentTime + 0.1;
+      noteIndex = 0;
+      timerId = setInterval(schedulerTick, 100);
+    },
+    stop(){
+      playing = false;
+      clearInterval(timerId);
+    },
+    toggleMute(){
+      muted = !muted;
+      return muted;
+    },
+    isMuted(){ return muted; }
+  };
+})();
+
+const sfx = {
+  correct(){ tone(660,0.12,'triangle',0.22,0); tone(880,0.14,'triangle',0.18,0.08); },
+  wrong(){ tone(180,0.25,'sawtooth',0.18,0); tone(120,0.3,'sawtooth',0.15,0.05); },
+  miss(){ tone(300,0.12,'sine',0.12,0); },
+  powerup(){ tone(520,0.1,'square',0.15,0); tone(780,0.1,'square',0.15,0.08); tone(1040,0.14,'square',0.15,0.16); },
+  levelup(){ tone(440,0.14,'triangle',0.2,0); tone(660,0.14,'triangle',0.2,0.12); tone(880,0.2,'triangle',0.22,0.24); },
+  lifeloss(){ tone(200,0.35,'square',0.18,0); }
+};
+
+/* ======================= STORAGE (leaderboard) ======================= */
+async function loadLeaderboard(){
+  try{
+    const res = await window.storage.get('phishingfishing_leaderboard', true);
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){}
+  return [];
+}
+async function saveScore(name, score, level){
+  let list = await loadLeaderboard();
+  list.push({name:name||'Angler', score, level, ts:Date.now()});
+  list.sort((a,b)=>b.score-a.score);
+  list = list.slice(0,10);
+  try{ await window.storage.set('phishingfishing_leaderboard', JSON.stringify(list), true); }catch(e){}
+  return list;
+}
+async function renderLeaderboard(){
+  const list = await loadLeaderboard();
+  const body = $('lbBody');
+  body.innerHTML = '';
+  if(list.length===0){
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px;">No scores yet — be the first!</td></tr>';
+    return;
+  }
+  list.forEach((row,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${escapeHtml(row.name)}</td><td>${row.score}</td><td>${row.level}</td>`;
+    body.appendChild(tr);
+  });
+}
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+/* ======================= SPAWNING ======================= */
+function pickMessage(){
+  return MESSAGES[Math.floor(Math.random()*MESSAGES.length)];
+}
+function spawnFish(){
+  if(!state || !state.running || state.paused) return;
+  const oceanRect = ocean.getBoundingClientRect();
+  const isPowerupSpawn = Math.random() < 0.16;
+  const levelCfg = LEVELS[state.level-1];
+
+  const el = document.createElement('div');
+  el.className = 'fish';
+  const y = 40 + Math.random() * Math.max(60, oceanRect.height - 140);
+  const fromLeft = Math.random() < 0.5;
+  const startX = fromLeft ? -140 : oceanRect.width + 20;
+  const dir = fromLeft ? 1 : -1;
+  if(!fromLeft) el.classList.add('flip');
+
+  let item = null, powerup = null, emoji;
+  if(isPowerupSpawn){
+    powerup = POWERUPS[Math.floor(Math.random()*POWERUPS.length)];
+    el.classList.add('powerup');
+    emoji = powerup.emoji;
+    el.innerHTML = `<div class="fish-emoji">${emoji}</div><div class="fish-label">${powerup.name}</div>`;
+  } else {
+    item = pickMessage();
+    const useShark = item.phishing && levelCfg.revealPredator;
+    emoji = useShark ? PREDATOR_FISH[Math.floor(Math.random()*PREDATOR_FISH.length)]
+                     : NORMAL_FISH[Math.floor(Math.random()*NORMAL_FISH.length)];
+    const chIcon = CHANNEL_META[item.channel].icon;
+    el.innerHTML = `<div class="fish-emoji">${emoji}</div><div class="fish-label">${chIcon} ${escapeHtml(item.sender)}<span class="fish-sub">${escapeHtml(item.text)}</span></div>`;
+  }
+
+  el.style.left = startX+'px';
+  el.style.top = y+'px';
+  ocean.appendChild(el);
+
+  const fishObj = {
+    el, x:startX, y, vx: dir * levelCfg.speed, baseY:y, phase:Math.random()*Math.PI*2,
+    dragging:false, item, powerup, resolved:false
+  };
+  attachDrag(fishObj);
+  state.fishEls.push(fishObj);
+}
+
+function scheduleSpawn(){
+  clearTimeout(state.spawnTimer);
+  const levelCfg = LEVELS[state.level-1];
+  const jitter = levelCfg.spawnMs * (0.7 + Math.random()*0.6);
+  state.spawnTimer = setTimeout(()=>{
+    spawnFish();
+    if(state.running && !state.paused) scheduleSpawn();
+  }, jitter);
+}
+
+/* ======================= MOVEMENT LOOP ======================= */
+function loop(ts){
+  if(!state || !state.running) return;
+  if(state.paused){ state.lastTs = ts; requestAnimationFrame(loop); return; }
+  const dt = state.lastTs ? Math.min(0.05,(ts-state.lastTs)/1000) : 0.016;
+  state.lastTs = ts;
+  const oceanRect = ocean.getBoundingClientRect();
+
+  state.fishEls.forEach(f=>{
+    if(f.resolved || f.dragging) return;
+    f.x += f.vx*dt;
+    f.phase += dt*2;
+    const bob = Math.sin(f.phase)*8;
+    f.el.style.left = f.x+'px';
+    f.el.style.top = (f.baseY+bob)+'px';
+
+    if(f.x < -160 || f.x > oceanRect.width+40){
+      resolveOffscreen(f);
+    }
+  });
+
+  state.fishEls = state.fishEls.filter(f=>!f.removed);
+  requestAnimationFrame(loop);
+}
+
+function resolveOffscreen(f){
+  if(f.resolved) return;
+  f.resolved = true;
+  if(f.powerup){
+    removeFish(f); return;
+  }
+  // missed a message that swam off without a decision
+  state.missedCount++;
+  state.combo = 1; state.comboCount = 0;
+  addScorePop(f.x, f.y, '−2', '#FF9F45');
+  state.score = Math.max(0, state.score-2);
+  updateHud();
+  sfx.miss();
+  removeFish(f);
+}
+
+function removeFish(f){
+  f.removed = true;
+  if(f.el && f.el.parentNode) f.el.parentNode.removeChild(f.el);
+}
+
+/* ======================= DRAG & DROP (pointer events, mobile+desktop) ======================= */
+function attachDrag(f){
+  const el = f.el;
+  el.addEventListener('pointerdown', (e)=>{
+    if(!state.running || state.paused) return;
+    f.dragging = true;
+    el.classList.add('dragging');
+    el.setPointerCapture(e.pointerId);
+    moveTo(e);
+  });
+  el.addEventListener('pointermove', (e)=>{
+    if(!f.dragging) return;
+    moveTo(e);
+    checkBucketHover(e);
+  });
+  el.addEventListener('pointerup', (e)=>{
+    if(!f.dragging) return;
+    f.dragging = false;
+    el.classList.remove('dragging');
+    clearBucketHover();
+    const result = getDropTarget(e);
+    if(result){ handleDrop(f, result); }
+  });
+  function moveTo(e){
+    const oceanRect = ocean.getBoundingClientRect();
+    f.x = e.clientX - oceanRect.left - el.offsetWidth/2;
+    f.y = e.clientY - oceanRect.top - el.offsetHeight/2;
+    el.style.left = f.x+'px';
+    el.style.top = f.y+'px';
+  }
+}
+function getDropTarget(e){
+  const sb = safeBucket.getBoundingClientRect();
+  const rb = reportBucket.getBoundingClientRect();
+  const x=e.clientX, y=e.clientY;
+  if(x>=sb.left&&x<=sb.right&&y>=sb.top&&y<=sb.bottom) return 'safe';
+  if(x>=rb.left&&x<=rb.right&&y>=rb.top&&y<=rb.bottom) return 'report';
+  return null;
+}
+function checkBucketHover(e){
+  const sb = safeBucket.getBoundingClientRect();
+  const rb = reportBucket.getBoundingClientRect();
+  const x=e.clientX, y=e.clientY;
+  safeBucket.classList.toggle('hover', x>=sb.left&&x<=sb.right&&y>=sb.top&&y<=sb.bottom);
+  reportBucket.classList.toggle('hover', x>=rb.left&&x<=rb.right&&y>=rb.top&&y<=rb.bottom);
+}
+function clearBucketHover(){
+  safeBucket.classList.remove('hover'); reportBucket.classList.remove('hover');
+}
+
+/* ======================= RESOLUTION LOGIC ======================= */
+function handleDrop(f, bucket){
+  if(f.resolved) return;
+  f.resolved = true;
+
+  if(f.powerup){
+    applyPowerup(f.powerup);
+    removeFish(f);
+    return;
+  }
+
+  const item = f.item;
+  const wantsReport = bucket === 'report';
+  const isCorrect = (item.phishing && wantsReport) || (!item.phishing && !wantsReport);
+
+  if(isCorrect){
+    state.comboCount++;
+    state.combo = Math.min(3, 1 + Math.floor(state.comboCount/4));
+    state.maxCombo = Math.max(state.maxCombo, state.combo);
+    let pts = 10*state.combo;
+    if(state.multiActive) pts *= 2;
+    state.score += pts;
+    state.correctCount++;
+    addScorePop(f.x, f.y, '+'+pts, '#1EDB8E');
+    sfx.correct();
+  } else {
+    if(state.shieldActive){
+      state.shieldActive = false;
+      addScorePop(f.x, f.y, 'Shielded!', '#33A8E0');
+    } else {
+      state.score = Math.max(0, state.score - 5);
+      state.lives = Math.max(0, state.lives-1);
+      sfx.lifeloss();
+      addScorePop(f.x, f.y, '-5', '#FF5C5C');
+    }
+    state.wrongCount++;
+    state.combo = 1; state.comboCount = 0;
+    sfx.wrong();
+  }
+  updateHud();
+  removeFish(f);
+  showQuickFeedback(item, isCorrect);
+
+  if(state.lives<=0){
+    endGame(false);
+  }
+}
+
+function applyPowerup(p){
+  state.powerupsUsed++;
+  sfx.powerup();
+  if(p.key==='time'){
+    state.timeLeft = Math.min(LEVELS[state.level-1].time+15, state.timeLeft+8);
+  } else if(p.key==='shield'){
+    state.shieldActive = true;
+  } else if(p.key==='multi'){
+    state.multiActive = true;
+    clearTimeout(state.multiTimer);
+    state.multiTimer = setTimeout(()=>{ state.multiActive=false; }, 8000);
+  }
+  toast(p.name+'! '+p.desc);
+}
+
+let toastTimer=null;
+function toast(msg){
+  let t = document.getElementById('toastEl');
+  if(!t){
+    t = document.createElement('div'); t.id='toastEl';
+    t.style.cssText='position:absolute;top:64px;left:50%;transform:translateX(-50%);background:rgba(4,40,70,0.85);color:#fff;padding:8px 16px;border-radius:999px;font-weight:600;font-size:13px;z-index:40;transition:opacity 0.3s;';
+    app.appendChild(t);
+  }
+  t.textContent = msg; t.style.opacity='1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.style.opacity='0'; }, 1800);
+}
+
+function addScorePop(x,y,text,color){
+  const p = document.createElement('div');
+  p.className='pop'; p.textContent=text; p.style.color=color;
+  p.style.left=x+'px'; p.style.top=y+'px';
+  ocean.appendChild(p);
+  setTimeout(()=>p.remove(), 950);
+}
+
+/* mid-round micro-learning popup (light touch — only every so often to keep pace) */
+let feedbackCounter=0;
+function showQuickFeedback(item, isCorrect){
+  feedbackCounter++;
+  if(feedbackCounter % 3 !== 0) return; // don't interrupt every single catch
+  pauseGameSoft(true);
+  $('fbVerdict').textContent = isCorrect ? '✅ Nice catch!' : '⚠️ Good to know';
+  $('fbVerdict').className = 'verdict '+(isCorrect?'good':'bad');
+  $('fbLearn').innerHTML = `<b>${escapeHtml(item.tactic)}:</b> ${escapeHtml(item.tip)}`;
+  $('feedbackScreen').classList.remove('hidden');
+}
+$('fbContinue').addEventListener('click', ()=>{
+  $('feedbackScreen').classList.add('hidden');
+  pauseGameSoft(false);
+});
+function pauseGameSoft(on){
+  if(!state) return;
+  state.paused = on;
+}
+
+/* ======================= HUD ======================= */
+function updateHud(){
+  scoreVal.textContent = state.score;
+  comboVal.textContent = 'x'+state.combo;
+  levelVal.textContent = state.level;
+  heartsEl.innerHTML = '<span class="lbl">LIVES</span>' + '<span>❤️</span>'.repeat(state.lives) + '<span style="opacity:.25">🤍</span>'.repeat(3-state.lives);
+}
+
+/* ======================= LEVEL / TIMER FLOW ======================= */
+function startLevel(n){
+  state.level = n;
+  const cfg = LEVELS[n-1];
+  state.timeLeft = cfg.time;
+  updateHud();
+  scheduleSpawn();
+  tickTimer();
+}
+function tickTimer(){
+  clearInterval(state.tickTimer);
+  state.tickTimer = setInterval(()=>{
+    if(!state.running || state.paused) return;
+    state.timeLeft -= 0.1;
+    const cfg = LEVELS[state.level-1];
+    timerFill.style.width = Math.max(0,(state.timeLeft/cfg.time*100))+'%';
+    if(state.timeLeft<=0){
+      clearInterval(state.tickTimer);
+      levelComplete();
+    }
+  },100);
+}
+function levelComplete(){
+  clearTimeout(state.spawnTimer);
+  // clear remaining fish gracefully
+  state.fishEls.forEach(f=>{ if(!f.resolved){ f.resolved=true; removeFish(f);} });
+  if(state.level >= MAX_LEVEL){
+    endGame(true);
+  } else {
+    sfx.levelup();
+    toast('Level '+state.level+' complete! Onward 🌊');
+    setTimeout(()=> startLevel(state.level+1), 900);
+  }
+}
+
+/* ======================= GAME LIFECYCLE ======================= */
+function startGame(){
+  state = freshState();
+  ocean.querySelectorAll('.fish').forEach(e=>e.remove());
+  $('startScreen').classList.add('hidden');
+  $('gameOverScreen').classList.add('hidden');
+  $('leaderboardScreen').classList.add('hidden');
+  updateHud();
+  state.running = true;
+  startLevel(1);
+  requestAnimationFrame(loop);
+}
+
+function endGame(won){
+  state.running = false;
+  clearTimeout(state.spawnTimer); clearInterval(state.tickTimer);
+  state.fishEls.forEach(f=>removeFish(f));
+
+  $('goTitle').textContent = won ? '🏁 Ocean Cleared!' : '🐟 Game Over';
+  $('goTagline').textContent = won ? 'You made it through every wave.' : 'You ran out of lives — try again!';
+  $('goScore').textContent = state.score;
+  $('goLevel').textContent = state.level;
+  $('goCorrect').textContent = state.correctCount;
+  $('goMissed').textContent = state.wrongCount+state.missedCount;
+
+  const badges = computeBadges();
+  const badgeWrap = $('goBadges');
+  badgeWrap.innerHTML = badges.length ? badges.map(b=>`<div class="badge-pill">${b}</div>`).join('') : '<span style="color:#94a3b8;font-size:13px;">No badges this round — give it another shot!</span>';
+
+  $('gameOverScreen').classList.remove('hidden');
+}
+
+function computeBadges(){
+  const b=[];
+  if(state.correctCount>=15) b.push('🎯 Sharp Eye');
+  if(state.maxCombo>=3) b.push('🔥 Combo Master');
+  if(state.wrongCount===0 && state.missedCount===0 && state.correctCount>0) b.push('💎 Perfect Sorter');
+  if(state.lives===3) b.push('🛟 Untouchable');
+  if(state.powerupsUsed>=2) b.push('⚡ Power Player');
+  if(state.level>=MAX_LEVEL) b.push('🏆 Ocean Champion');
+  return b;
+}
+
+/* ======================= UI WIRING ======================= */
+$('playBtn').addEventListener('click', ()=>{ audioCtx(); music.start(); startGame(); });
+$('playAgainBtn').addEventListener('click', ()=>{ music.start(); startGame(); });
+$('musicBtn').addEventListener('click', ()=>{
+  const nowMuted = music.toggleMute();
+  $('musicBtn').textContent = nowMuted ? '🔇' : '🔊';
+});
+$('pauseBtn').addEventListener('click', ()=>{
+  if(!state || !state.running) return;
+  state.paused = true;
+  $('pauseScreen').classList.remove('hidden');
+});
+$('resumeBtn').addEventListener('click', ()=>{
+  state.paused = false;
+  $('pauseScreen').classList.add('hidden');
+});
+$('quitBtn').addEventListener('click', ()=>{
+  if(state){ state.running=false; clearTimeout(state.spawnTimer); clearInterval(state.tickTimer); state.fishEls.forEach(f=>removeFish(f)); }
+  $('pauseScreen').classList.add('hidden');
+  $('startScreen').classList.remove('hidden');
+});
+$('submitScoreBtn').addEventListener('click', async ()=>{
+  const name = $('nameInput').value.trim() || 'Angler';
+  $('submitScoreBtn').disabled = true;
+  $('submitScoreBtn').textContent = 'Saving...';
+  await saveScore(name, state.score, state.level);
+  $('submitScoreBtn').textContent = 'Saved ✓';
+});
+$('leaderboardBtnStart').addEventListener('click', async ()=>{
+  await renderLeaderboard();
+  $('leaderboardScreen').classList.remove('hidden');
+});
+$('viewLbBtn').addEventListener('click', async ()=>{
+  await renderLeaderboard();
+  $('leaderboardScreen').classList.remove('hidden');
+});
+$('closeLbBtn').addEventListener('click', ()=>{
+  $('leaderboardScreen').classList.add('hidden');
+});
+
+/* prevent page scroll/bounce while dragging fish on mobile */
+document.addEventListener('touchmove', (e)=>{ if(state && state.running) e.preventDefault(); }, {passive:false});
+
+})();
+</script>
+</body>
+</html>
